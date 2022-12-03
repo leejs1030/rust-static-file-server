@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::str;
 
 pub fn get_ext_name(file_name: &str) -> &str {
     let mut arr = file_name.rsplit(".");
@@ -81,4 +81,13 @@ pub fn get_mime_type(ext_name: &str) -> &str {
 
 pub fn get_plain_type() -> &'static str {
     "text/plain"
+}
+
+pub fn get_method_and_path_from_request(request: &[u8; 512]) -> (String, String) {
+    let tmp = str::from_utf8(request).unwrap().to_string();
+
+    let mut arr = tmp.split(" ");
+    let method = arr.next().unwrap().to_string();
+    let path = arr.next().unwrap().to_string();
+    (method, path)
 }
