@@ -1,6 +1,6 @@
 mod libs;
 
-use crate::libs::HttpStatus;
+use crate::libs::{read_file, HttpStatus};
 use std::fs::File;
 use std::io::prelude::*;
 use std::net::TcpListener;
@@ -34,9 +34,8 @@ fn handle_connection(mut stream: TcpStream) {
             let file = File::open("./files".to_owned() + path);
             match file {
                 Err(e) => (HttpStatus::NotFound, e.to_string(), libs::get_plain_type()),
-                Ok(mut t) => {
-                    let mut file_content = String::new();
-                    t.read_to_string(&mut file_content).unwrap_or_default();
+                Ok(file) => {
+                    let file_content = read_file(file);
                     let ext_name = libs::get_ext_name(path);
                     let mime_type = libs::get_mime_type(ext_name);
                     (HttpStatus::Ok, file_content, mime_type)

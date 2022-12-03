@@ -1,6 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::prelude::*;
 use std::str;
 
 pub fn get_ext_name(file_name: &str) -> &str {
@@ -172,4 +173,10 @@ impl fmt::Display for HttpStatus {
         };
         write!(f, "{}", status)
     }
+}
+
+pub fn read_file(mut file: File) -> String {
+    let mut file_content = String::new();
+    file.read_to_string(&mut file_content).unwrap_or_default();
+    file_content
 }
