@@ -1,6 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 use std::str;
+use tokio::fs::File;
 
 pub enum HttpStatus {
     NotFound,
@@ -166,4 +167,26 @@ pub fn get_mime_type(ext_name: &str) -> &str {
 
 pub fn get_plain_mime_type() -> &'static str {
     "text/plain"
+}
+
+pub fn not_found_error_response(msg: &str) -> String {
+    format!(
+        "{}\r\nContent-Length: {}\r\nContent-Type:{}\r\n\r\n{}",
+        HttpStatus::NotFound,
+        msg.len(),
+        get_plain_mime_type(),
+        msg
+    )
+}
+
+pub async fn ok_string_response_from_file(file: File, ext_name: &str) -> String {
+    let file_content = super::file::read_file(file).await;
+    let mime_type = get_mime_type(ext_name);
+    format!(
+        "{}\r\nContent-Length: {}\r\nContent-Type:{}\r\n\r\n{}",
+        HttpStatus::Ok,
+        file_content.len(),
+        mime_type,
+        file_content
+    )
 }

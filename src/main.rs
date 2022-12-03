@@ -1,8 +1,8 @@
 mod libs;
 
 use crate::libs::{file, http};
-use tokio::fs::File;
 use std::io::prelude::*;
+use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
@@ -12,9 +12,7 @@ async fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").await.unwrap();
     loop {
         let (stream, _) = listener.accept().await.unwrap();
-        tokio::spawn(async {
-            handle_connection(stream).await
-        });
+        tokio::spawn(async { handle_connection(stream).await });
     }
 }
 
@@ -27,40 +25,17 @@ async fn handle_connection(mut stream: TcpStream) -> usize {
     let body = request.get("body").unwrap();
     let method = header.get("method").unwrap().as_str();
     let path = header.get("path").unwrap().as_str();
+    let ext_name = file::get_ext_name(path);
 
-    println!("\n\nrequest header: {:#?}", header);
-    println!("\n\nrequest body: {:#?}", body);
-
-    let (status_line, contents, mime_type) = match method {
+    let response = match method {
         "GET" => {
-            let file = File::open("./files".to_owned() + path);
-            match file.await {
-                Err(e) => (
-                    http::HttpStatus::NotFound,
-                    e.to_string(),
-                    http::get_plain_mime_type(),
-                ),
-                Ok(file) => {
-                    let file_content = file::read_file(file).await;
-                    let ext_name = file::get_ext_name(path);
-                    let mime_type = http::get_mime_type(ext_name);
-                    (http::HttpStatus::Ok, file_content, mime_type)
-                }
+            let file = File::open("./files".to_owned() + path).await;
+            match file {
+                Err(e) => http::not_found_error_response(&e.to_string()),
+                Ok(file) => http::ok_string_response_from_file(file, ext_name).await,
             }
         }
-        etc => (
-            http::HttpStatus::NotFound,
-            String::from(format!("Method {} is not supported!", etc)),
-            http::get_plain_mime_type(),
-        ),
+        etc => http::not_found_error_response(format!("Method {} is not supported!", etc).as_str()),
     };
-
-    let response = format!(
-        "{}\r\nContent-Length: {}\r\nContent-Type:{}\r\n\r\n{}",
-        status_line,
-        contents.len(),
-        mime_type,
-        contents
-    );
-    stream.write(response.as_bytes()).await.unwrap_or(-1)
+    stream.write(response.as_bytes()).await.unwrap_or(0)
 }
