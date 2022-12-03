@@ -45,7 +45,7 @@ fn handle_connection(mut stream: TcpStream) {
         }
         etc => (
             "HTTP/1.1 404 NOT FOUND",
-            String::from(format!("Cannot GET {}", etc)),
+            String::from(format!("Method {} is not supported!", etc)),
             libs::get_plain_type(),
         ),
     };
