@@ -1,4 +1,6 @@
+use core::fmt;
 use std::collections::HashMap;
+use std::fs::File;
 use std::str;
 
 pub fn get_ext_name(file_name: &str) -> &str {
@@ -144,4 +146,28 @@ pub fn parse_request(request: &[u8; 512]) -> HashMap<String, HashMap<String, Str
     request.insert("header".to_string(), header);
     request.insert("body".to_string(), body);
     request
+}
+
+pub enum HttpStatus {
+    NotFound,
+    Ok,
+}
+
+impl HttpStatus {
+    fn value(&self) -> &str {
+        match *self {
+            HttpStatus::NotFound => "HTTP/1.1 404 NOT FOUND",
+            HttpStatus::Ok => "HTTP/1.1 200 OK",
+        }
+    }
+}
+
+impl fmt::Display for HttpStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let status = match self {
+            HttpStatus::NotFound => HttpStatus::NotFound,
+            HttpStatus::Ok => HttpStatus::Ok,
+        };
+        write!(f, "{}", status)
+    }
 }

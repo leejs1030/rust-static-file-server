@@ -1,5 +1,6 @@
 mod libs;
 
+use crate::libs::HttpStatus;
 use std::fs::File;
 use std::io::prelude::*;
 use std::net::TcpListener;
@@ -32,22 +33,18 @@ fn handle_connection(mut stream: TcpStream) {
         "GET" => {
             let file = File::open("./files".to_owned() + path);
             match file {
-                Err(e) => (
-                    "HTTP/1.1 404 NOT FOUND",
-                    e.to_string(),
-                    libs::get_plain_type(),
-                ),
+                Err(e) => (HttpStatus::NotFound, e.to_string(), libs::get_plain_type()),
                 Ok(mut t) => {
                     let mut file_content = String::new();
                     t.read_to_string(&mut file_content).unwrap_or_default();
                     let ext_name = libs::get_ext_name(path);
                     let mime_type = libs::get_mime_type(ext_name);
-                    ("HTTP/1.1 200 OK", file_content, mime_type)
+                    (HttpStatus::Ok, file_content, mime_type)
                 }
             }
         }
         etc => (
-            "HTTP/1.1 404 NOT FOUND",
+            HttpStatus::NotFound,
             String::from(format!("Method {} is not supported!", etc)),
             libs::get_plain_type(),
         ),
