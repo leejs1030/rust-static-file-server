@@ -130,7 +130,15 @@ pub fn parse_request(request: &[u8; 512]) -> HashMap<String, HashMap<String, Str
     let body_str = split_request.next().unwrap_or("").to_string();
 
     let header = parse_header(header_str);
-    let body = parse_body(body_str);
+
+    let content_type = match header.get("Content-Type") {
+        Some(t) => t.as_str(),
+        _ => "",
+    };
+    let body = match content_type {
+        "application/x-www-form-urlencoded" => parse_body(body_str),
+        _ => HashMap::new(),
+    };
 
     let mut request = HashMap::new();
     request.insert("header".to_string(), header);
