@@ -1,24 +1,26 @@
 mod libs;
 
 use crate::libs::{file, http};
-use std::fs::File;
+use tokio::fs::File;
 use std::io::prelude::*;
-use std::net::TcpListener;
-use std::net::TcpStream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio::net::TcpStream;
 
-fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-
-        handle_connection(stream);
+#[tokio::main]
+async fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").await.unwrap();
+    loop {
+        let (stream, _) = listener.accept().await.unwrap();
+        tokio::spawn(async {
+            handle_connection(stream).await
+        });
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
+async fn handle_connection(mut stream: TcpStream) -> usize {
     let mut request = [0; 512];
-    stream.read(&mut request).unwrap();
+    stream.read(&mut request).await.unwrap();
 
     let request = http::parse_request(&request);
     let header = request.get("header").unwrap();
@@ -32,10 +34,14 @@ fn handle_connection(mut stream: TcpStream) {
     let (status_line, contents, mime_type) = match method {
         "GET" => {
             let file = File::open("./files".to_owned() + path);
-            match file {
-                Err(e) => (http::HttpStatus::NotFound, e.to_string(), http::get_plain_mime_type()),
+            match file.await {
+                Err(e) => (
+                    http::HttpStatus::NotFound,
+                    e.to_string(),
+                    http::get_plain_mime_type(),
+                ),
                 Ok(file) => {
-                    let file_content = file::read_file(file);
+                    let file_content = file::read_file(file).await;
                     let ext_name = file::get_ext_name(path);
                     let mime_type = http::get_mime_type(ext_name);
                     (http::HttpStatus::Ok, file_content, mime_type)
@@ -56,5 +62,5 @@ fn handle_connection(mut stream: TcpStream) {
         mime_type,
         contents
     );
-    stream.write(response.as_bytes()).unwrap();
+    stream.write(response.as_bytes()).await.unwrap_or(-1)
 }
