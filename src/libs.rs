@@ -154,6 +154,7 @@ pub enum HttpStatus {
 }
 
 impl HttpStatus {
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             HttpStatus::NotFound => "HTTP/1.1 404 NOT FOUND",
