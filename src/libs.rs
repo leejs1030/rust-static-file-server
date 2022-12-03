@@ -97,9 +97,10 @@ fn parse_header(str: String) -> HashMap<String, String> {
     let url = uri_info.next().unwrap().to_string();
     let pos = url.find("?").unwrap_or(url.len());
     let path = url[0..pos].to_string();
-    let query_string = url[pos + 1..].to_string();
+    if pos != url.len() {
+        map.insert("query_string".to_string(), url[pos + 1..].to_string());
+    }
     map.insert("path".to_string(), path);
-    map.insert("query_string".to_string(), query_string);
 
     for line in lines {
         let mut key_value = line.split(": ");
