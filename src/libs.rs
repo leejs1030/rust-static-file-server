@@ -154,8 +154,8 @@ pub enum HttpStatus {
 }
 
 impl HttpStatus {
-    fn value(&self) -> &str {
-        match *self {
+    pub fn as_str(&self) -> &'static str {
+        match self {
             HttpStatus::NotFound => "HTTP/1.1 404 NOT FOUND",
             HttpStatus::Ok => "HTTP/1.1 200 OK",
         }
@@ -165,8 +165,8 @@ impl HttpStatus {
 impl fmt::Display for HttpStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let status = match self {
-            HttpStatus::NotFound => HttpStatus::NotFound,
-            HttpStatus::Ok => HttpStatus::Ok,
+            HttpStatus::NotFound => HttpStatus::NotFound.as_str(),
+            HttpStatus::Ok => HttpStatus::Ok.as_str(),
         };
         write!(f, "{}", status)
     }
