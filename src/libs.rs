@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str;
 
 pub fn get_ext_name(file_name: &str) -> &str {
@@ -83,11 +84,53 @@ pub fn get_plain_type() -> &'static str {
     "text/plain"
 }
 
-pub fn get_method_and_path_from_request(request: &[u8; 512]) -> (String, String) {
+fn parse_header(str: String) -> HashMap<String, String> {
+    let mut map: HashMap<String, String> = HashMap::new();
+
+    let mut lines = str.lines();
+    let mut uri_info = lines.next().unwrap().split(" ");
+
+    let method = uri_info.next().unwrap().to_string();
+    map.insert("method".to_string(), method);
+    let path = uri_info.next().unwrap().to_string();
+    map.insert("path".to_string(), path);
+
+    for line in lines {
+        let mut key_value = line.split(": ");
+        let key = key_value.next().unwrap().to_string();
+        let value = key_value.next().unwrap().to_string();
+        map.insert(key, value);
+    }
+    map
+}
+
+fn parse_body(str: String) -> HashMap<String, String> {
+    println!("{}", str);
+    let lines = str.lines();
+    let mut map: HashMap<String, String> = HashMap::new();
+    for line in lines {
+        let mut key_value = line.split("=");
+        let key = key_value.next().unwrap().to_string();
+        let value = key_value.next().unwrap().to_string();
+        let value = value.replace("\0", "");
+        map.insert(key, value);
+    }
+    map
+}
+
+pub fn parse_request(request: &[u8; 512]) -> HashMap<String, HashMap<String, String>> {
     let tmp = str::from_utf8(request).unwrap().to_string();
 
-    let mut arr = tmp.split(" ");
-    let method = arr.next().unwrap().to_string();
-    let path = arr.next().unwrap().to_string();
-    (method, path)
+    let mut split_request = tmp.split("\r\n\r\n");
+
+    let header_str = split_request.next().unwrap().to_string();
+    let body_str = split_request.next().unwrap_or("").to_string();
+
+    let header = parse_header(header_str);
+    let body = parse_body(body_str);
+
+    let mut request = HashMap::new();
+    request.insert("header".to_string(), header);
+    request.insert("body".to_string(), body);
+    request
 }

@@ -4,7 +4,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
-use std::str;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
@@ -20,8 +19,11 @@ fn handle_connection(mut stream: TcpStream) {
     let mut request = [0; 512];
     stream.read(&mut request).unwrap();
 
-    let (method, path) = libs::get_method_and_path_from_request(&request);
-    let (method, path): (&str, &str) = (&method, &path);
+    let request = libs::parse_request(&request);
+    let header = request.get("header").unwrap();
+    let body = request.get("body").unwrap();
+    let method = header.get("method").unwrap().as_str();
+    let path = header.get("path").unwrap().as_str();
 
     let (status_line, contents, mime_type) = match method {
         "GET" => {
