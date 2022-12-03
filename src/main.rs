@@ -25,6 +25,9 @@ fn handle_connection(mut stream: TcpStream) {
     let method = header.get("method").unwrap().as_str();
     let path = header.get("path").unwrap().as_str();
 
+    println!("\n\nrequest header: {:#?}", header);
+    println!("\n\nrequest body: {:#?}", body);
+
     let (status_line, contents, mime_type) = match method {
         "GET" => {
             let file = File::open("./files".to_owned() + path);
