@@ -105,7 +105,6 @@ fn parse_header(str: String) -> HashMap<String, String> {
 }
 
 fn parse_body(str: String) -> HashMap<String, String> {
-    println!("{}", str);
     let lines = str.lines();
     let mut map: HashMap<String, String> = HashMap::new();
     for line in lines {
