@@ -1,6 +1,6 @@
 mod libs;
 
-use crate::libs::{read_file, HttpStatus};
+use crate::libs::{file, http};
 use std::fs::File;
 use std::io::prelude::*;
 use std::net::TcpListener;
@@ -20,7 +20,7 @@ fn handle_connection(mut stream: TcpStream) {
     let mut request = [0; 512];
     stream.read(&mut request).unwrap();
 
-    let request = libs::parse_request(&request);
+    let request = http::parse_request(&request);
     let header = request.get("header").unwrap();
     let body = request.get("body").unwrap();
     let method = header.get("method").unwrap().as_str();
@@ -33,19 +33,19 @@ fn handle_connection(mut stream: TcpStream) {
         "GET" => {
             let file = File::open("./files".to_owned() + path);
             match file {
-                Err(e) => (HttpStatus::NotFound, e.to_string(), libs::get_plain_type()),
+                Err(e) => (http::HttpStatus::NotFound, e.to_string(), http::get_plain_mime_type()),
                 Ok(file) => {
-                    let file_content = read_file(file);
-                    let ext_name = libs::get_ext_name(path);
-                    let mime_type = libs::get_mime_type(ext_name);
-                    (HttpStatus::Ok, file_content, mime_type)
+                    let file_content = file::read_file(file);
+                    let ext_name = file::get_ext_name(path);
+                    let mime_type = http::get_mime_type(ext_name);
+                    (http::HttpStatus::Ok, file_content, mime_type)
                 }
             }
         }
         etc => (
-            HttpStatus::NotFound,
+            http::HttpStatus::NotFound,
             String::from(format!("Method {} is not supported!", etc)),
-            libs::get_plain_type(),
+            http::get_plain_mime_type(),
         ),
     };
 
