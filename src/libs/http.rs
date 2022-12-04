@@ -4,6 +4,7 @@ use hyper::http::HeaderValue;
 use hyper::{Body, Response, StatusCode};
 use std::collections::HashMap;
 use std::str;
+use hyper::client::ResponseFuture;
 use tokio::fs::File;
 
 pub enum HttpStatus {
@@ -172,41 +173,38 @@ pub fn get_plain_mime_type() -> &'static str {
     "text/plain"
 }
 
-pub struct CustomHttpResponse {
-    method_not_found_response: Response<Body>,
+fn set_content_type(mut response: Response<Body>, content_type: &str) -> Response<Body> {
+    let t = response.headers_mut();
+    t.insert(
+        "Content-Type",
+        HeaderValue::from_str(content_type).unwrap(),
+    );
+    response
 }
 
-impl CustomHttpResponse {
-    pub fn new() -> CustomHttpResponse {
-        let method_not_found_response = CustomHttpResponse::build_not_found_error_response();
-        CustomHttpResponse {
-            method_not_found_response,
-        }
-    }
-
-    fn build_not_found_error_response() -> Response<Body> {
-        let mut response = Response::new(Body::empty());
-        *response.status_mut() = StatusCode::NOT_FOUND;
-        let data = r#"{ "message": "This Method is not supported!" }"#;
-        let value: serde_json::Value = serde_json::from_str(data).unwrap();
-        let mut buf = BytesMut::new().writer();
-        serde_json::to_writer(&mut buf, &value).unwrap();
-        *response.body_mut() = (Body::from(buf.into_inner().freeze()));
-        let t = response.headers_mut();
-        t.insert(
-            "Content-Type",
-            HeaderValue::from_str("application/json").unwrap(),
-        );
-        response
-    }
-
-    pub fn not_found_error_response() -> Response<Body> {
-        this.method_not_found_response
-    }
+fn set_status_code(mut response: Response<Body>, code: StatusCode) -> Response<Body>{
+    *response.status_mut() = code;
+    response
 }
 
-pub fn not_found_error_response() -> Response<Body> {
-    method_not_found_response
+fn set_json_body(mut response: Response<Body>, data: &str) -> Response<Body>{
+    let value: serde_json::Value = serde_json::from_str(data).unwrap();
+    let mut buf = BytesMut::new().writer();
+    serde_json::to_writer(&mut buf, &value).unwrap();
+    *response.body_mut() = (Body::from(buf.into_inner().freeze()));
+    response
+}
+
+fn get_empty_response() -> Response<Body> {
+    Response::new(Body::empty())
+}
+
+pub fn build_method_not_found_error_response() -> Response<Body> {
+    let mut response = get_empty_response();
+    response = set_status_code(response, StatusCode::NOT_FOUND);
+    response = set_content_type(response, "application/json");
+    response = set_json_body(response, r#"{ "message": "This Method is not supported!" }"#);
+    response
 }
 
 pub async fn ok_string_response_from_file(file: File, ext_name: &str) -> String {

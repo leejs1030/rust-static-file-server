@@ -1,6 +1,6 @@
 mod libs;
 
-use crate::libs::http::{not_found_error_response, CustomHttpResponse};
+use crate::libs::http::{build_method_not_found_error_response};
 use bytes::{BufMut, Bytes, BytesMut};
 use hyper::http::HeaderValue;
 use hyper::service::{make_service_fn, service_fn};
@@ -12,12 +12,11 @@ async fn top_router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let path = req.uri().path();
     let method = req.method();
 
-    let custom_http_response = CustomHttpResponse::new();
     let response = match method {
         // &Method::GET => (),
         // &Method::PUT => (),
         // &Method::DELETE => (),
-        _ => custom_http_response.not_found_error_response(),
+        _ => build_method_not_found_error_response(),
     };
     Ok(response)
 }
