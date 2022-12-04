@@ -1,4 +1,7 @@
+use bytes::{BufMut, BytesMut};
 use core::fmt;
+use hyper::http::HeaderValue;
+use hyper::{Body, Response, StatusCode};
 use std::collections::HashMap;
 use std::str;
 use tokio::fs::File;
@@ -169,14 +172,41 @@ pub fn get_plain_mime_type() -> &'static str {
     "text/plain"
 }
 
-pub fn not_found_error_response(msg: &str) -> String {
-    format!(
-        "{}\r\nContent-Length: {}\r\nContent-Type:{}\r\n\r\n{}",
-        HttpStatus::NotFound,
-        msg.len(),
-        get_plain_mime_type(),
-        msg
-    )
+pub struct CustomHttpResponse {
+    method_not_found_response: Response<Body>,
+}
+
+impl CustomHttpResponse {
+    pub fn new() -> CustomHttpResponse {
+        let method_not_found_response = CustomHttpResponse::build_not_found_error_response();
+        CustomHttpResponse {
+            method_not_found_response,
+        }
+    }
+
+    fn build_not_found_error_response() -> Response<Body> {
+        let mut response = Response::new(Body::empty());
+        *response.status_mut() = StatusCode::NOT_FOUND;
+        let data = r#"{ "message": "This Method is not supported!" }"#;
+        let value: serde_json::Value = serde_json::from_str(data).unwrap();
+        let mut buf = BytesMut::new().writer();
+        serde_json::to_writer(&mut buf, &value).unwrap();
+        *response.body_mut() = (Body::from(buf.into_inner().freeze()));
+        let t = response.headers_mut();
+        t.insert(
+            "Content-Type",
+            HeaderValue::from_str("application/json").unwrap(),
+        );
+        response
+    }
+
+    pub fn not_found_error_response() -> Response<Body> {
+        this.method_not_found_response
+    }
+}
+
+pub fn not_found_error_response() -> Response<Body> {
+    method_not_found_response
 }
 
 pub async fn ok_string_response_from_file(file: File, ext_name: &str) -> String {
