@@ -1,9 +1,10 @@
-use bytes::{BufMut, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use core::fmt;
 use hyper::http::HeaderValue;
 use hyper::{Body, Response, StatusCode};
 use std::collections::HashMap;
 use std::str;
+use http_body_util::Full;
 use hyper::client::ResponseFuture;
 use tokio::fs::File;
 
@@ -207,14 +208,24 @@ pub fn build_method_not_found_error_response() -> Response<Body> {
     response
 }
 
-pub async fn ok_string_response_from_file(file: File, ext_name: &str) -> String {
-    let file_content = super::file::read_file(file).await;
-    let mime_type = get_mime_type(ext_name);
-    format!(
-        "{}\r\nContent-Length: {}\r\nContent-Type:{}\r\n\r\n{}",
-        HttpStatus::Ok,
-        file_content.len(),
-        mime_type,
-        file_content
-    )
+// pub async fn ok_string_response_from_file(file: File, ext_name: &str) -> String {
+//     let file_content = super::file::read_file(file).await;
+//     let mime_type = get_mime_type(ext_name);
+//     format!(
+//         "{}\r\nContent-Length: {}\r\nContent-Type:{}\r\n\r\n{}",
+//         HttpStatus::Ok,
+//         file_content.len(),
+//         mime_type,
+//         file_content
+//     )
+// }
+
+pub fn file_response(content: Bytes) -> Response<Body>{
+
+    // if let Ok(contents) = tokio::fs::read(filename).await {
+    //     let body = contents.into();
+    //     return Ok(Response::new(Full::new(body)));
+    // }
+    let mut response = Response::new(Body::from(content));
+    response
 }

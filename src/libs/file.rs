@@ -1,4 +1,5 @@
 use std::io::prelude::*;
+use bytes::Bytes;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
@@ -7,10 +8,10 @@ pub fn get_ext_name(file_name: &str) -> &str {
     arr.next().unwrap_or("_")
 }
 
-pub async fn read_file(mut file: File) -> String {
-    let mut file_content = String::new();
-    file.read_to_string(&mut file_content)
-        .await
-        .unwrap_or_default();
-    file_content
+pub async fn read_file(file_name: &str) -> Result<Vec<u8>, String> {
+    let file = tokio::fs::read(file_name).await;
+    match file{
+        Ok(contents) => Ok(contents),
+        Err(e) => Err(e.to_string()),
+    }
 }
