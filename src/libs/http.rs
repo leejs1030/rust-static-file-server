@@ -1,11 +1,11 @@
 use bytes::{BufMut, Bytes, BytesMut};
 use core::fmt;
+use http_body_util::Full;
+use hyper::client::ResponseFuture;
 use hyper::http::HeaderValue;
 use hyper::{Body, Response, StatusCode};
 use std::collections::HashMap;
 use std::str;
-use http_body_util::Full;
-use hyper::client::ResponseFuture;
 use tokio::fs::File;
 
 pub enum HttpStatus {
@@ -174,21 +174,22 @@ pub fn get_plain_mime_type() -> &'static str {
     "text/plain"
 }
 
-fn set_content_type(mut response: Response<Body>, content_type: &str) -> Response<Body> {
+pub fn get_json_mime_type() -> &'static str {
+    "application/json"
+}
+
+pub fn set_content_type(mut response: Response<Body>, content_type: &str) -> Response<Body> {
     let t = response.headers_mut();
-    t.insert(
-        "Content-Type",
-        HeaderValue::from_str(content_type).unwrap(),
-    );
+    t.insert("Content-Type", HeaderValue::from_str(content_type).unwrap());
     response
 }
 
-fn set_status_code(mut response: Response<Body>, code: StatusCode) -> Response<Body>{
+pub fn set_status_code(mut response: Response<Body>, code: StatusCode) -> Response<Body> {
     *response.status_mut() = code;
     response
 }
 
-fn set_json_body(mut response: Response<Body>, data: &str) -> Response<Body>{
+pub fn set_json_body(mut response: Response<Body>, data: &str) -> Response<Body> {
     let value: serde_json::Value = serde_json::from_str(data).unwrap();
     let mut buf = BytesMut::new().writer();
     serde_json::to_writer(&mut buf, &value).unwrap();
@@ -203,8 +204,11 @@ fn get_empty_response() -> Response<Body> {
 pub fn build_method_not_found_error_response() -> Response<Body> {
     let mut response = get_empty_response();
     response = set_status_code(response, StatusCode::NOT_FOUND);
-    response = set_content_type(response, "application/json");
-    response = set_json_body(response, r#"{ "message": "This Method is not supported!" }"#);
+    response = set_content_type(response, get_json_mime_type());
+    response = set_json_body(
+        response,
+        r#"{ "message": "This Method is not supported!" }"#,
+    );
     response
 }
 
@@ -220,8 +224,7 @@ pub fn build_method_not_found_error_response() -> Response<Body> {
 //     )
 // }
 
-pub fn file_response(content: Bytes) -> Response<Body>{
-
+pub async fn file_response(content: Bytes) -> Response<Body> {
     // if let Ok(contents) = tokio::fs::read(filename).await {
     //     let body = contents.into();
     //     return Ok(Response::new(Full::new(body)));
