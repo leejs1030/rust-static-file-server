@@ -52,46 +52,42 @@ async fn delete_file(path: &str, query: &str) -> Response<Body> {
         build_json_message_response(StatusCode::BAD_REQUEST, "Invalid query params");
     let mut map = HashMap::new();
     let params = query.split("&");
-    let mut is_directory: Option<bool> = None;
-    if query.len() != 0 {
-        for param in params {
-            let mut itr = param.split("=");
-            let key = match itr.next() {
-                Some(key_name) => match map.get(key_name) {
-                    Some(_) => return invalid_query_response,
-                    None => {
-                        map.insert(key_name, true);
-                        key_name
-                    }
-                },
-                None => return invalid_query_response,
-            };
-
-            let value = match itr.next() {
-                Some(t) => t,
-                None => return invalid_query_response,
-            };
-            let extra = itr.next();
-            match extra {
+    for param in params {
+        let mut itr = param.split("=");
+        let key = match itr.next() {
+            Some(key_name) => match map.get(key_name) {
                 Some(_) => return invalid_query_response,
-                _ => {}
-            };
+                None => key_name,
+            },
+            None => return invalid_query_response,
+        };
 
-            if key == "type" {
-                if value == "file" {
-                    is_directory = Some(false);
-                } else if value == "directory" {
-                    is_directory = Some(true);
-                } else {
-                    return invalid_query_response;
-                }
+        match itr.next() {
+            Some(value) => {
+                map.insert(key, value);
+                value
             }
-        }
+            None => return invalid_query_response,
+        };
+        let extra = itr.next();
+        match extra {
+            Some(_) => return invalid_query_response,
+            _ => {}
+        };
     }
 
-    let is_directory = match is_directory {
-        Some(t) => t,
-        None => false,
+    let tmp = *map.get("type").unwrap_or(&"file");
+
+    println!("{}", tmp);
+
+    let is_directory = {
+        if tmp == "file" {
+            false
+        } else if tmp == "directory" {
+            true
+        } else {
+            return invalid_query_response;
+        }
     };
     let res = match is_directory {
         false => remove_file(path).await,
