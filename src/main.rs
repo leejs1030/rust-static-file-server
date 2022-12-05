@@ -14,6 +14,7 @@ use hyper::http::HeaderValue;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use std::borrow::{Borrow, BorrowMut};
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::fmt::format;
 use std::io::BufReader;
@@ -47,46 +48,48 @@ async fn put_file(file_name: &str, body: Body) -> Response<Body> {
 }
 
 async fn delete_file(path: &str, query: &str) -> Response<Body> {
+    let invalid_query_response =
+        build_json_message_response(StatusCode::BAD_REQUEST, "Invalid query params");
+    let mut map = HashMap::new();
     let params = query.split("&");
     let mut is_directory: Option<bool> = None;
     for param in params {
         let mut itr = param.split("=");
-        let key = itr.next();
-        let value = itr.next();
+        let key = match itr.next() {
+            Some(key_name) => match map.get(key_name) {
+                Some(_) => return invalid_query_response,
+                None => {
+                    map.insert(key_name, true);
+                    key_name
+                }
+            },
+            None => return invalid_query_response,
+        };
+
+        let value = match itr.next() {
+            Some(t) => t,
+            None => return invalid_query_response,
+        };
         let extra = itr.next();
-        if extra != None {
-            return build_json_message_response(StatusCode::BAD_REQUEST, "Invalid query params");
-        }
-        if value == None {
-            return build_json_message_response(StatusCode::BAD_REQUEST, "Invalid query params");
-        }
-        if key == None {
-            return build_json_message_response(StatusCode::BAD_REQUEST, "Invalid query params");
-        }
-        if key.unwrap() == "type" {
-            if is_directory != None {
-                return build_json_message_response(
-                    StatusCode::BAD_REQUEST,
-                    "Invalid query params",
-                );
-            }
-            let value = value.unwrap();
+        match extra {
+            Some(_) => return invalid_query_response,
+            _ => {}
+        };
+
+        if key == "type" {
             if value == "file" {
                 is_directory = Some(false);
             } else if value == "directory" {
                 is_directory = Some(true);
             } else {
-                return build_json_message_response(
-                    StatusCode::BAD_REQUEST,
-                    "Invalid query params",
-                );
+                return invalid_query_response;
             }
         }
     }
 
-    let is_directory = match is_directory{
+    let is_directory = match is_directory {
         Some(t) => t,
-        None => false
+        None => false,
     };
     let res = match is_directory {
         false => remove_file(path).await,
