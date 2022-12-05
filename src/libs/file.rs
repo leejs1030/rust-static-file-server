@@ -34,3 +34,8 @@ pub async fn write_file(file_name: &str, content: Bytes) -> tokio::io::Result<()
     let path = "./files".to_owned() + file_name;
     tokio::fs::write(path, content).await
 }
+
+pub async fn remove_file(file_name: &str) -> tokio::io::Result<()> {
+    let path = "./files".to_owned() + file_name;
+    tokio::fs::remove_file(path).await
+}

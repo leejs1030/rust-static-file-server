@@ -1,6 +1,6 @@
 mod libs;
 
-use crate::libs::file::{get_ext_name, read_file, write_file};
+use crate::libs::file::{get_ext_name, read_file, remove_file, write_file};
 use crate::libs::http::{
     build_method_not_found_error_response, file_response, get_json_mime_type, get_mime_type,
     get_plain_mime_type, set_content_type, set_json_body, set_status_code,
@@ -80,6 +80,33 @@ async fn put_file(file_name: &str, body: Body) -> Response<Body> {
     }
 }
 
+async fn delete_file(path: &str) -> Response<Body> {
+    let res = remove_file(path).await;
+    match res {
+        Ok(_) => {
+            let mut response = Response::new(Body::empty());
+            response = set_content_type(response, get_json_mime_type());
+
+            let data = r#"{"message": "File succesfully deleted!"}"#;
+            response = set_json_body(response, data);
+
+            response
+        }
+        Err(e) => {
+            let mut response = Response::new(Body::empty());
+            response = set_content_type(response, get_json_mime_type());
+            response = set_status_code(response, StatusCode::INTERNAL_SERVER_ERROR);
+
+            let mut data = r#"{"message":""#.to_string();
+            data.push_str(&e.to_string());
+            data.push_str("\"}");
+            response = set_json_body(response, &data);
+
+            response
+        }
+    }
+}
+
 async fn top_router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let t = tokio::spawn(async move {
         let (parts, body) = req.into_parts();
@@ -89,7 +116,7 @@ async fn top_router(req: Request<Body>) -> Result<Response<Body>, Infallible> {
         let response = match method {
             Method::GET => get_file(path).await,
             Method::PUT => put_file(path, body).await,
-            // Method::DELETE => (),
+            Method::DELETE => delete_file(path).await,
             _ => build_method_not_found_error_response(),
         };
         println!("{:?}", response);
