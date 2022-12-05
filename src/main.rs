@@ -53,36 +53,38 @@ async fn delete_file(path: &str, query: &str) -> Response<Body> {
     let mut map = HashMap::new();
     let params = query.split("&");
     let mut is_directory: Option<bool> = None;
-    for param in params {
-        let mut itr = param.split("=");
-        let key = match itr.next() {
-            Some(key_name) => match map.get(key_name) {
+    if query.len() != 0 {
+        for param in params {
+            let mut itr = param.split("=");
+            let key = match itr.next() {
+                Some(key_name) => match map.get(key_name) {
+                    Some(_) => return invalid_query_response,
+                    None => {
+                        map.insert(key_name, true);
+                        key_name
+                    }
+                },
+                None => return invalid_query_response,
+            };
+
+            let value = match itr.next() {
+                Some(t) => t,
+                None => return invalid_query_response,
+            };
+            let extra = itr.next();
+            match extra {
                 Some(_) => return invalid_query_response,
-                None => {
-                    map.insert(key_name, true);
-                    key_name
+                _ => {}
+            };
+
+            if key == "type" {
+                if value == "file" {
+                    is_directory = Some(false);
+                } else if value == "directory" {
+                    is_directory = Some(true);
+                } else {
+                    return invalid_query_response;
                 }
-            },
-            None => return invalid_query_response,
-        };
-
-        let value = match itr.next() {
-            Some(t) => t,
-            None => return invalid_query_response,
-        };
-        let extra = itr.next();
-        match extra {
-            Some(_) => return invalid_query_response,
-            _ => {}
-        };
-
-        if key == "type" {
-            if value == "file" {
-                is_directory = Some(false);
-            } else if value == "directory" {
-                is_directory = Some(true);
-            } else {
-                return invalid_query_response;
             }
         }
     }
