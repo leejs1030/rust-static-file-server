@@ -29,3 +29,8 @@ pub async fn read_file(file_name: &str) -> Result<Vec<u8>, (StatusCode, String)>
         },
     }
 }
+
+pub async fn write_file(file_name: &str, content: Bytes) -> tokio::io::Result<()> {
+    let path = "./files".to_owned() + file_name;
+    tokio::fs::write(path, content).await
+}
