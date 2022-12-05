@@ -9,23 +9,17 @@ pub fn get_ext_name(file_name: &str) -> &str {
     arr.next().unwrap_or("_")
 }
 
-pub async fn read_file(file_name: &str) -> Result<Vec<u8>, (StatusCode, String)> {
+pub async fn read_file(file_name: &str) -> Result<Bytes, (StatusCode, String)> {
     let path = "./files".to_owned() + file_name;
     let file = tokio::fs::read(path).await;
     match file {
-        Ok(contents) => Ok(contents),
+        Ok(contents) => Ok(Bytes::from(contents)),
         Err(e) => match e.kind() {
             std::io::ErrorKind::NotFound => Err((
                 StatusCode::NOT_FOUND,
-                String::from(r#"{"message": "File does not exist!"}"#),
+                String::from("File does not exist!"),
             )),
-            _ => {
-                let mut data = String::from(r#"{"message": "Internal Server Error""#);
-                let message = e.to_string();
-                data.push_str(&format!(r#", "detail": "{}""#, &message));
-                data.push_str("}");
-                Err((StatusCode::INTERNAL_SERVER_ERROR, data))
-            }
+            _ => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
         },
     }
 }

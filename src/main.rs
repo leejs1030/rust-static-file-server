@@ -1,10 +1,7 @@
 mod libs;
 
 use crate::libs::file::{get_ext_name, read_file, remove_file, write_file};
-use crate::libs::http::{
-    build_method_not_found_error_response, file_response, get_json_mime_type, get_mime_type,
-    get_plain_mime_type, set_content_type, set_json_body, set_status_code,
-};
+use crate::libs::http::{build_json_message_response, build_method_not_found_error_response, file_response, get_json_mime_type, get_mime_type, get_plain_mime_type, set_content_type, set_json_body, set_status_code};
 use bytes::{BufMut, Bytes, BytesMut};
 use http_body_util::StreamBody;
 use hyper::body::HttpBody;
@@ -29,81 +26,27 @@ async fn get_file(path: &str) -> Response<Body> {
             let mime_type = get_mime_type(ext_name);
             set_content_type(response, mime_type)
         }
-        Err(e) => {
-            let (code, data) = e;
-            let mut response = Response::new(Body::empty());
-            response = set_content_type(response, get_json_mime_type());
-            response = set_status_code(response, code);
-            response = set_json_body(response, &data);
-            response
-        }
+        Err((code, message)) => build_json_message_response(code, &message)
     }
 }
 
 async fn put_file(file_name: &str, body: Body) -> Response<Body> {
     let content = hyper::body::to_bytes(body).await.unwrap();
     if content.len() == 0 {
-        let mut response = Response::new(Body::empty());
-        response = set_content_type(response, get_json_mime_type());
-        response = set_status_code(response, StatusCode::BAD_REQUEST);
-
-        let mut data = r#"{"message":""#.to_string();
-        data.push_str("File should not be empty!");
-        data.push_str("\"}");
-        response = set_json_body(response, &data);
-
-        return response;
+        return build_json_message_response(StatusCode::BAD_REQUEST, "File should not be empty!");
     }
     let res = write_file(file_name, content).await;
     match res {
-        Ok(_) => {
-            let mut response = Response::new(Body::empty());
-            response = set_content_type(response, get_json_mime_type());
-
-            let data = r#"{"message": "File succesfully created!"}"#;
-            response = set_json_body(response, data);
-
-            response
-        }
-        Err(e) => {
-            let mut response = Response::new(Body::empty());
-            response = set_content_type(response, get_json_mime_type());
-            response = set_status_code(response, StatusCode::INTERNAL_SERVER_ERROR);
-
-            let mut data = r#"{"message":""#.to_string();
-            data.push_str(&e.to_string());
-            data.push_str("\"}");
-            response = set_json_body(response, &data);
-
-            response
-        }
+        Ok(_) => build_json_message_response(StatusCode::OK, "File is successfully created!"),
+        Err(e) => build_json_message_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
     }
 }
 
 async fn delete_file(path: &str) -> Response<Body> {
     let res = remove_file(path).await;
     match res {
-        Ok(_) => {
-            let mut response = Response::new(Body::empty());
-            response = set_content_type(response, get_json_mime_type());
-
-            let data = r#"{"message": "File succesfully deleted!"}"#;
-            response = set_json_body(response, data);
-
-            response
-        }
-        Err(e) => {
-            let mut response = Response::new(Body::empty());
-            response = set_content_type(response, get_json_mime_type());
-            response = set_status_code(response, StatusCode::INTERNAL_SERVER_ERROR);
-
-            let mut data = r#"{"message":""#.to_string();
-            data.push_str(&e.to_string());
-            data.push_str("\"}");
-            response = set_json_body(response, &data);
-
-            response
-        }
+        Ok(_) => build_json_message_response(StatusCode::OK, "File is successfully deleted!"),
+        Err(e) => build_json_message_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
     }
 }
 

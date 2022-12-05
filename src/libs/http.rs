@@ -232,3 +232,16 @@ pub async fn file_response(content: Bytes) -> Response<Body> {
     let mut response = Response::new(Body::from(content));
     response
 }
+
+pub fn build_json_message_response(code: StatusCode, message: &str) -> Response<Body> {
+    let mut response = Response::new(Body::empty());
+    response = set_content_type(response, get_json_mime_type());
+    response = set_status_code(response, code);
+
+    let mut data = r#"{"message":""#.to_string();
+    data.push_str(message);
+    data.push_str("\"}");
+    response = set_json_body(response, &data);
+
+    response
+}
