@@ -121,18 +121,6 @@ pub fn build_method_not_found_error_response() -> Response<Body> {
     response
 }
 
-// pub async fn ok_string_response_from_file(file: File, ext_name: &str) -> String {
-//     let file_content = super::file::read_file(file).await;
-//     let mime_type = get_mime_type(ext_name);
-//     format!(
-//         "{}\r\nContent-Length: {}\r\nContent-Type:{}\r\n\r\n{}",
-//         HttpStatus::Ok,
-//         file_content.len(),
-//         mime_type,
-//         file_content
-//     )
-// }
-
 pub fn get_mime_type_by_name(path: &str) -> &str {
     let ext_name = file::get_ext_name(path);
     get_mime_type(ext_name)
