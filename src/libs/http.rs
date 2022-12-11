@@ -1,100 +1,9 @@
+use crate::libs::file;
 use bytes::{BufMut, Bytes, BytesMut};
-use core::fmt;
-use http_body_util::Full;
-use hyper::client::ResponseFuture;
 use hyper::http::HeaderValue;
 use hyper::{Body, Response, StatusCode};
 use std::collections::HashMap;
 use std::str;
-use tokio::fs::File;
-
-pub enum HttpStatus {
-    NotFound,
-    Ok,
-}
-
-impl HttpStatus {
-    #[allow(dead_code)]
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            HttpStatus::NotFound => "HTTP/1.1 404 NOT FOUND",
-            HttpStatus::Ok => "HTTP/1.1 200 OK",
-        }
-    }
-}
-
-impl fmt::Display for HttpStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let status = match self {
-            HttpStatus::NotFound => HttpStatus::NotFound.as_str(),
-            HttpStatus::Ok => HttpStatus::Ok.as_str(),
-        };
-        write!(f, "{}", status)
-    }
-}
-
-fn parse_header(str: String) -> HashMap<String, String> {
-    let mut map: HashMap<String, String> = HashMap::new();
-
-    let mut lines = str.lines();
-    let mut uri_info = lines.next().unwrap().split(" ");
-
-    let method = uri_info.next().unwrap().to_string();
-    map.insert("method".to_string(), method);
-    let url = uri_info.next().unwrap().to_string();
-    let pos = url.find("?").unwrap_or(url.len());
-    let path = url[0..pos].to_string();
-    if pos != url.len() {
-        map.insert("query_string".to_string(), url[pos + 1..].to_string());
-    }
-    map.insert("path".to_string(), path);
-
-    for line in lines {
-        let mut key_value = line.split(": ");
-        let key = key_value.next().unwrap().to_string();
-        let value = key_value.next().unwrap().to_string();
-        map.insert(key, value);
-    }
-    map
-}
-
-fn parse_body(str: String) -> HashMap<String, String> {
-    let lines = str.lines();
-    let mut map: HashMap<String, String> = HashMap::new();
-    for line in lines {
-        let mut key_value = line.split("=");
-        let key = key_value.next().unwrap().to_string();
-        let value = key_value.next().unwrap().to_string();
-        let value = value.replace("\0", "");
-        map.insert(key, value);
-    }
-    map
-}
-
-pub fn parse_request(request: &[u8; 512]) -> HashMap<String, HashMap<String, String>> {
-    let tmp = str::from_utf8(request).unwrap().to_string();
-
-    let mut split_request = tmp.split("\r\n\r\n");
-
-    let header_str = split_request.next().unwrap().to_string();
-    let body_str = split_request.next().unwrap_or("").to_string();
-
-    let header = parse_header(header_str);
-
-    let content_type = match header.get("Content-Type") {
-        Some(t) => t.as_str(),
-        _ => "",
-    };
-    let body = match content_type {
-        "application/x-www-form-urlencoded" => parse_body(body_str),
-        _ => HashMap::new(),
-    };
-
-    let mut request = HashMap::new();
-    request.insert("header".to_string(), header);
-    request.insert("body".to_string(), body);
-    request
-}
 
 pub fn get_mime_type(ext_name: &str) -> &str {
     match ext_name {
@@ -193,7 +102,7 @@ pub fn set_json_body(mut response: Response<Body>, data: &str) -> Response<Body>
     let value: serde_json::Value = serde_json::from_str(data).unwrap();
     let mut buf = BytesMut::new().writer();
     serde_json::to_writer(&mut buf, &value).unwrap();
-    *response.body_mut() = (Body::from(buf.into_inner().freeze()));
+    *response.body_mut() = Body::from(buf.into_inner().freeze());
     response
 }
 
@@ -224,12 +133,16 @@ pub fn build_method_not_found_error_response() -> Response<Body> {
 //     )
 // }
 
-pub async fn file_response(content: Bytes) -> Response<Body> {
-    // if let Ok(contents) = tokio::fs::read(filename).await {
-    //     let body = contents.into();
-    //     return Ok(Response::new(Full::new(body)));
-    // }
-    let mut response = Response::new(Body::from(content));
+pub fn get_mime_type_by_name(path: &str) -> &str {
+    let ext_name = file::get_ext_name(path);
+    get_mime_type(ext_name)
+}
+
+pub fn file_response(path: &str, content: Bytes) -> Response<Body> {
+    let mime_type = get_mime_type_by_name(path);
+    let response = Response::new(Body::from(content));
+    let response = set_content_type(response, mime_type);
+    println!("{:?}", response);
     response
 }
 
@@ -244,4 +157,37 @@ pub fn build_json_message_response(code: StatusCode, message: &str) -> Response<
     response = set_json_body(response, &data);
 
     response
+}
+
+pub fn invalid_query_response() -> Response<Body> {
+    build_json_message_response(StatusCode::BAD_REQUEST, "Invalid query params")
+}
+
+pub fn parse_query(query: &str) -> Result<HashMap<&str, &str>, Response<Body>> {
+    let mut map = HashMap::new();
+    let params = query.split("&");
+    for param in params {
+        let mut itr = param.split("=");
+        let key = match itr.next() {
+            Some(key_name) => match map.get(key_name) {
+                Some(_) => return Err(invalid_query_response()),
+                None => key_name,
+            },
+            None => return Err(invalid_query_response()),
+        };
+
+        match itr.next() {
+            Some(value) => {
+                map.insert(key, value);
+                value
+            }
+            None => return Err(invalid_query_response()),
+        };
+        let extra = itr.next();
+        match extra {
+            Some(_) => return Err(invalid_query_response()),
+            _ => {}
+        };
+    }
+    Ok(map)
 }

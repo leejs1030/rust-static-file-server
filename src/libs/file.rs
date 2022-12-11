@@ -1,8 +1,5 @@
 use crate::StatusCode;
 use bytes::Bytes;
-use std::io::prelude::*;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
 
 pub fn get_ext_name(file_name: &str) -> &str {
     let mut arr = file_name.rsplit(".");
